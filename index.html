@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>HATCHET — the first night</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #020606; overflow: hidden; }
+  canvas { display: block; }
+  /* Shell is used only for the title/loading state and the end card. */
+  .card {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; pointer-events: none;
+    color: #cfdcd6; font-family: Georgia, 'Times New Roman', serif;
+    transition: opacity 2.2s ease; text-align: center;
+  }
+  .card h1 {
+    font-size: clamp(28px, 5vw, 54px); font-weight: 400;
+    letter-spacing: 0.55em; text-indent: 0.55em; margin: 0 0 14px 0;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.8);
+  }
+  .card p {
+    font-size: 12px; letter-spacing: 0.4em; text-indent: 0.4em;
+    opacity: 0.55; margin: 4px 0; text-transform: lowercase;
+  }
+  .card .keys { opacity: 0.3; font-size: 10px; margin-top: 26px; letter-spacing: 0.3em; }
+  #title { opacity: 1; background: radial-gradient(ellipse at 50% 60%, rgba(2,6,6,0.25), rgba(2,6,6,0.75)); }
+  #title.gone { opacity: 0; }
+  #end { opacity: 0; transition: opacity 3s ease; }
+  #end.shown { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="card" id="title">
+  <h1>HATCHET</h1>
+  <p>the first night</p>
+  <p class="keys">&#8592; &#8593; &#8595; &#8594;</p>
+</div>
+
+<div class="card" id="end">
+  <h1>&nbsp;</h1>
+  <p>morning will come</p>
+</div>
+
+<script src="src/util.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/world.js"></script>
+<script src="src/player.js"></script>
+<script src="src/camera.js"></script>
+<script src="src/atmosphere.js"></script>
+<script src="src/render.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
