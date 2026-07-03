@@ -40,6 +40,8 @@
     const k = KEYS[e.code];
     if (k) inp[k] = false;
   });
+  // a click/tap also dismisses the title (and focuses the page in embeds)
+  window.addEventListener('pointerdown', () => { anyKey = true; });
 
   // ------------------------------------------------------------- state
   const st = {
