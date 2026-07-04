@@ -1,4 +1,4 @@
-name: deploy-pages
+name: commit-plates
 
 on:
   push:
@@ -6,27 +6,22 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: plates
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  plates:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      # Bake the Higgsfield-generated plates into the site so the deployed
-      # game is fully self-contained (no runtime CDN dependency).
-      - name: Fetch painted plates
+      # Fetch the Higgsfield-generated art once and commit it, so the game
+      # is fully self-contained and no longer depends on a CDN.
+      - name: Fetch and commit painted plates
         run: |
+          if [ -f assets/plates/bd_dawn.png ]; then echo "plates already committed"; exit 0; fi
           mkdir -p assets/plates
           base="https://d8j0ntlcm91z4.cloudfront.net/user_3FznXrOOp14m783apv4k3hlBvLe"
           curl -fsSL -o assets/plates/bd_dawn.png    "$base/hf_20260703_145957_018985dc-a692-44e9-92e4-6bc59f437e48.png"
@@ -37,15 +32,8 @@ jobs:
           curl -fsSL -o assets/plates/giant_pine.png "$base/hf_20260704_125149_48638102-f599-42a1-bbb1-fbaa236c54d5.png"
           curl -fsSL -o assets/plates/log_bridge.png "$base/hf_20260704_124751_99f6d1fc-bae4-4ce9-905c-b6e4d26a5369.png"
           curl -fsSL -o assets/plates/overhang.png   "$base/hf_20260704_124754_d49712f9-a48a-4751-aef8-261db4b0fee5.png"
-          ls -la assets/plates
-
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add assets/plates
+          git commit -m "Add generated painted plates (fetched by CI)"
+          git push
