@@ -211,6 +211,7 @@ G.Render = (() => {
     const { w, h } = view;
     const cam = view.cam;
     const g = grade(P.x);
+    const usePlates = G.Plates && G.Plates.any();
     const night = env.night, dawn = env.dawn, storm = env.storm;
     const t = st.t;
     const zoom = cam.zoom * (Math.min(w / 960, h / 540) || 1);
@@ -244,7 +245,7 @@ G.Render = (() => {
 
     // day cloud veils
     const dayA = (1 - storm) * (1 - night) * 0.16;
-    if (dayA > 0.01) {
+    if (!usePlates && dayA > 0.01) {
       for (const c of clouds) {
         const cx = ((c.u * (w + 600) + t * c.sp) % (w + 600)) - 300;
         const cy = h * c.v;
@@ -261,7 +262,7 @@ G.Render = (() => {
     }
 
     // dawn sun glow
-    if (dawn > 0.02) {
+    if (!usePlates && dawn > 0.02) {
       const gx = w * 0.62, gy = h * 0.42;
       const rg = ctx.createRadialGradient(gx, gy, 0, gx, gy, w * 0.5);
       rg.addColorStop(0, U.css(H('#f2ead0'), 0.5 * dawn));
@@ -270,7 +271,7 @@ G.Render = (() => {
       ctx.fillRect(0, 0, w, h);
     }
     // stars + moon
-    if (night > 0.05) {
+    if (!usePlates && night > 0.05) {
       ctx.save();
       ctx.globalAlpha = night;
       for (const s of stars) {
@@ -289,7 +290,7 @@ G.Render = (() => {
       ctx.restore();
     }
     // storm cloud masses
-    if (storm > 0.03) {
+    if (!usePlates && storm > 0.03) {
       ctx.save();
       ctx.globalAlpha = storm * 0.85;
       for (let i = 0; i < 7; i++) {
@@ -310,45 +311,52 @@ G.Render = (() => {
       ctx.restore();
     }
 
-    // ---------------- far hills ----------------
-    layer(0.10, () => {
-      const x0 = cam.x - w / zoom, x1 = cam.x + w / zoom;
-      ctx.beginPath();
-      ctx.moveTo(x0, cam.y + h);
-      for (let x = x0; x <= x1; x += 40) {
-        ctx.lineTo(x, 250 - hillN(x * 0.0012) * 110 - hillN(x * 0.004 + 40) * 26);
-      }
-      ctx.lineTo(x1, cam.y + h);
-      ctx.closePath();
-      ctx.fillStyle = U.css(U.mixc(g.far, g.fog, 0.62));
-      ctx.fill();
-    });
+    // ---------------- painted backdrop panoramas (when plates loaded) ------
+    if (usePlates) {
+      drawBackdropPlates(ctx, w, h, cam, P.x, env);
+    } else {
+      // ---------------- far hills ----------------
+      layer(0.10, () => {
+        const x0 = cam.x - w / zoom, x1 = cam.x + w / zoom;
+        ctx.beginPath();
+        ctx.moveTo(x0, cam.y + h);
+        for (let x = x0; x <= x1; x += 40) {
+          ctx.lineTo(x, 250 - hillN(x * 0.0012) * 110 - hillN(x * 0.004 + 40) * 26);
+        }
+        ctx.lineTo(x1, cam.y + h);
+        ctx.closePath();
+        ctx.fillStyle = U.css(U.mixc(g.far, g.fog, 0.62));
+        ctx.fill();
+      });
 
-    // ---------------- far treeline (small, dense — a band, not giants) -----
-    layer(0.28, () => {
-      const col = U.css(U.mixc(g.far, g.fog, 0.42));
-      const x0 = cam.x - w / zoom - 300, x1 = cam.x + w / zoom + 300;
-      for (const tr of treesFar) {
-        if (tr.x < x0 || tr.x > x1) continue;
-        const base = 318 - treeN(tr.x * 0.002) * 50;
-        pine(ctx, tr.x, base, tr.h, tr.w, tr.s, col, 0.95);
-      }
-    });
+      // ---------------- far treeline (small, dense — a band, not giants) ---
+      layer(0.28, () => {
+        const col = U.css(U.mixc(g.far, g.fog, 0.42));
+        const x0 = cam.x - w / zoom - 300, x1 = cam.x + w / zoom + 300;
+        for (const tr of treesFar) {
+          if (tr.x < x0 || tr.x > x1) continue;
+          const base = 318 - treeN(tr.x * 0.002) * 50;
+          pine(ctx, tr.x, base, tr.h, tr.w, tr.s, col, 0.95);
+        }
+      });
+    }
 
     fogBand(ctx, w, h, 0.50, g, 0.36 + storm * 0.2, t, 0.9);
 
     // ---------------- mid trees ----------------
-    layer(0.55, () => {
-      const col = U.css(U.mixc(g.mid, g.fog, 0.08));
-      const x0 = cam.x - w / zoom - 350, x1 = cam.x + w / zoom + 350;
-      for (const tr of treesMid) {
-        if (tr.x < x0 || tr.x > x1) continue;
-        const base = W.groundY(tr.x);
-        if (base > 380) continue;
-        if (tr.snag) snag(ctx, tr.x, base + 12, tr.h * 0.55, tr.s, col);
-        else pine(ctx, tr.x, base + 12, tr.h, tr.w, tr.s, col);
-      }
-    });
+    if (!usePlates) {
+      layer(0.55, () => {
+        const col = U.css(U.mixc(g.mid, g.fog, 0.08));
+        const x0 = cam.x - w / zoom - 350, x1 = cam.x + w / zoom + 350;
+        for (const tr of treesMid) {
+          if (tr.x < x0 || tr.x > x1) continue;
+          const base = W.groundY(tr.x);
+          if (base > 380) continue;
+          if (tr.snag) snag(ctx, tr.x, base + 12, tr.h * 0.55, tr.s, col);
+          else pine(ctx, tr.x, base + 12, tr.h, tr.w, tr.s, col);
+        }
+      });
+    }
 
     fogBand(ctx, w, h, 0.60, g, 0.24 + storm * 0.16, t + 40, 1.4);
 
@@ -369,33 +377,35 @@ G.Render = (() => {
       for (const bw of W.BG_WATER) {
         if (cam.x < bw.x0 - 900 || cam.x > bw.x1 + 900) continue;
         const y = bw.surf;
-        const grd = ctx.createLinearGradient(0, y, 0, y + 260);
-        grd.addColorStop(0, U.css(U.mixc(g.sh, g.fog, 0.4), 0.95));
-        grd.addColorStop(0.5, U.css(U.mixc(g.far, g.near, 0.35), 0.98));
-        grd.addColorStop(1, U.css(g.near));
-        ctx.fillStyle = grd;
-        ctx.fillRect(bw.x0, y, bw.x1 - bw.x0, 460);
-        ctx.strokeStyle = U.css(g.li, bw.kind === 'night' ? 0.10 : 0.08);
-        ctx.lineWidth = 1.2;
-        for (let i = 0; i < 14; i++) {
-          const ly = y + 8 + i * i * 1.6;
-          const off = Math.sin(t * (0.5 + i * 0.11) + i * 2.3) * (8 + i * 2);
-          ctx.beginPath();
-          ctx.moveTo(Math.max(bw.x0, cam.x - 600) + off, ly);
-          ctx.lineTo(Math.min(bw.x1, cam.x + 600) + off, ly);
-          ctx.stroke();
+        if (!usePlates) { // painted plates carry their own water
+          const grd = ctx.createLinearGradient(0, y, 0, y + 260);
+          grd.addColorStop(0, U.css(U.mixc(g.sh, g.fog, 0.4), 0.95));
+          grd.addColorStop(0.5, U.css(U.mixc(g.far, g.near, 0.35), 0.98));
+          grd.addColorStop(1, U.css(g.near));
+          ctx.fillStyle = grd;
+          ctx.fillRect(bw.x0, y, bw.x1 - bw.x0, 460);
+          ctx.strokeStyle = U.css(g.li, bw.kind === 'night' ? 0.10 : 0.08);
+          ctx.lineWidth = 1.2;
+          for (let i = 0; i < 14; i++) {
+            const ly = y + 8 + i * i * 1.6;
+            const off = Math.sin(t * (0.5 + i * 0.11) + i * 2.3) * (8 + i * 2);
+            ctx.beginPath();
+            ctx.moveTo(Math.max(bw.x0, cam.x - 600) + off, ly);
+            ctx.lineTo(Math.min(bw.x1, cam.x + 600) + off, ly);
+            ctx.stroke();
+          }
         }
         if (bw.kind === 'night') {
-          glint(ctx, 8620, y, 240, H('#cfe8e2'), 0.13 * night, t);
+          if (!usePlates) glint(ctx, 8620, y, 240, H('#cfe8e2'), 0.13 * night, t);
           if (st.fireLit) glint(ctx, W.FIRE.x - 30, y, 130, H('#ff9a3c'), 0.16, t * 1.7);
         }
       }
     });
 
     // ---------------- set pieces + terrain + player ----------------
-    layer(1, () => { drawSetPieces(ctx, g, t, night, st); });
+    layer(1, () => { drawSetPieces(ctx, g, t, night, st, usePlates); });
     layer(1, () => {
-      drawTerrain(ctx, g, cam, w, zoom, storm, night, t);
+      drawTerrain(ctx, g, cam, w, zoom, storm, night, t, usePlates);
       drawLog(ctx, g, t, env);
       drawBranch(ctx, g, st);
       if (st.fireLit) drawFire(ctx, t);
@@ -481,6 +491,24 @@ G.Render = (() => {
   }
 
   // -------------------------------------------------------------- helpers
+  // painted beat panoramas, cover-fit, slow-panned, cross-faded at seams
+  function drawBackdropPlates(ctx, w, h, cam, px, env) {
+    for (const d of G.Plates.BACKDROPS) {
+      const img = G.Plates.get(d.name);
+      if (!img) continue;
+      const M = 380;
+      const a = U.smoothstep(d.x0 - M, d.x0 + M, px) * (1 - U.smoothstep(d.x1 - M, d.x1 + M, px));
+      if (a <= 0.004) continue;
+      const dh = h * 1.1;
+      const dw = dh * img.width / img.height;
+      const u = U.clamp((cam.x - d.x0) / (d.x1 - d.x0), 0, 1);
+      const ox = -u * Math.max(0, dw - w);
+      ctx.globalAlpha = a;
+      ctx.drawImage(img, ox, -h * 0.05, dw, dh);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function fogBand(ctx, w, h, yF, g, alpha, t, spd) {
     if (alpha <= 0.01) return;
     for (let i = 0; i < 3; i++) {
@@ -508,7 +536,7 @@ G.Render = (() => {
     }
   }
 
-  function drawTerrain(ctx, g, cam, w, zoom, storm, night, t) {
+  function drawTerrain(ctx, g, cam, w, zoom, storm, night, t, usePlates) {
     const x0 = cam.x - w / zoom - 100, x1 = cam.x + w / zoom + 100;
     ctx.beginPath();
     ctx.moveTo(x0, W.groundY(x0));
@@ -516,9 +544,11 @@ G.Render = (() => {
     ctx.lineTo(x1, cam.y + 700);
     ctx.lineTo(x0, cam.y + 700);
     ctx.closePath();
+    // in front of painted plates the play plane goes near-silhouette (Inside)
+    const grC = usePlates ? U.mixc(g.gr, [2, 5, 5], 0.55) : g.gr;
     const gg = ctx.createLinearGradient(0, cam.y - 120, 0, cam.y + 360);
-    gg.addColorStop(0, U.css(g.gr));
-    gg.addColorStop(1, U.css(U.mixc(g.gr, [2, 5, 5], 0.7)));
+    gg.addColorStop(0, U.css(grC));
+    gg.addColorStop(1, U.css(U.mixc(grC, [2, 5, 5], 0.7)));
     ctx.fillStyle = gg;
     ctx.fill();
 
@@ -567,7 +597,7 @@ G.Render = (() => {
     }
   }
 
-  function drawSetPieces(ctx, g, t, night, st) {
+  function drawSetPieces(ctx, g, t, night, st, usePlates) {
     // fallen debris logs in the torn clearing (the two step-up plateaus)
     const logC = U.css(U.mixc(g.near, [30, 24, 16], 0.28));
     const logL = U.css(U.mixc(g.gl, g.li, 0.3), 0.6);
@@ -587,24 +617,33 @@ G.Render = (() => {
 
     // giant ancient pine landmark at 2170
     const gpX = 2170, gpY = W.groundY(gpX);
-    const gpC = U.css(U.mixc(g.near, g.mid, 0.22));
-    ctx.fillStyle = gpC;
-    ctx.beginPath();
-    ctx.moveTo(gpX - 34, gpY + 6);
-    ctx.quadraticCurveTo(gpX - 16, gpY - 300, gpX - 13, gpY - 900);
-    ctx.lineTo(gpX + 13, gpY - 900);
-    ctx.quadraticCurveTo(gpX + 18, gpY - 300, gpX + 38, gpY + 6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = gpC;
-    for (let i = 0; i < 7; i++) {
-      const ly = gpY - 200 - i * 90;
-      const dir = i % 2 ? 1 : -1;
-      ctx.lineWidth = 8 - i * 0.7;
+    const gpImg = G.Plates && G.Plates.get('giant_pine');
+    if (gpImg) {
+      const dh = 980, dw = dh * gpImg.width / gpImg.height;
+      ctx.save();
+      ctx.globalAlpha = 0.94;
+      ctx.drawImage(gpImg, gpX - dw * 0.5, gpY + 12 - dh, dw, dh);
+      ctx.restore();
+    } else {
+      const gpC = U.css(U.mixc(g.near, g.mid, 0.22));
+      ctx.fillStyle = gpC;
       ctx.beginPath();
-      ctx.moveTo(gpX + dir * 10, ly);
-      ctx.quadraticCurveTo(gpX + dir * 55, ly + 4, gpX + dir * (95 - i * 6), ly + 26 - i * 2);
-      ctx.stroke();
+      ctx.moveTo(gpX - 34, gpY + 6);
+      ctx.quadraticCurveTo(gpX - 16, gpY - 300, gpX - 13, gpY - 900);
+      ctx.lineTo(gpX + 13, gpY - 900);
+      ctx.quadraticCurveTo(gpX + 18, gpY - 300, gpX + 38, gpY + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = gpC;
+      for (let i = 0; i < 7; i++) {
+        const ly = gpY - 200 - i * 90;
+        const dir = i % 2 ? 1 : -1;
+        ctx.lineWidth = 8 - i * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(gpX + dir * 10, ly);
+        ctx.quadraticCurveTo(gpX + dir * 55, ly + 4, gpX + dir * (95 - i * 6), ly + 26 - i * 2);
+        ctx.stroke();
+      }
     }
 
     // ravine walls with strata
@@ -645,17 +684,19 @@ G.Render = (() => {
       ctx.lineTo(6630, y + edgeN(i * 5 + 2) * 14 - 8);
       ctx.stroke();
     }
-    // shelf underside behind the player (the lip in the FG pass does the rest;
-    // the crawl gap itself stays open so the pale lake reads through it)
-    ctx.fillStyle = U.css(U.mixc(rockBack, [0, 0, 0], 0.25));
-    ctx.beginPath();
-    ctx.moveTo(6580, -700);
-    ctx.lineTo(7150, -700);
-    ctx.lineTo(7140, 212);
-    for (let x = 7080; x >= 6600; x -= 60) ctx.lineTo(x, (W.ceilingY(x) || 230) - 2 + edgeN(x * 0.03) * 5);
-    ctx.lineTo(6590, 208);
-    ctx.closePath();
-    ctx.fill();
+    // shelf underside behind the player (skipped when the painted shelf
+    // cutout hangs in the foreground pass instead)
+    if (!(G.Plates && G.Plates.get('overhang'))) {
+      ctx.fillStyle = U.css(U.mixc(rockBack, [0, 0, 0], 0.25));
+      ctx.beginPath();
+      ctx.moveTo(6580, -700);
+      ctx.lineTo(7150, -700);
+      ctx.lineTo(7140, 212);
+      for (let x = 7080; x >= 6600; x -= 60) ctx.lineTo(x, (W.ceilingY(x) || 230) - 2 + edgeN(x * 0.03) * 5);
+      ctx.lineTo(6590, 208);
+      ctx.closePath();
+      ctx.fill();
+    }
     // interior gloom pooled at the middle of the crawl
     ctx.save();
     ctx.translate(6860, 252);
@@ -690,6 +731,24 @@ G.Render = (() => {
 
   function drawLog(ctx, g, t, env) {
     const L = W.LOG;
+    const img = G.Plates && G.Plates.get('log_bridge');
+    if (img) {
+      // stretch the painted trunk across the span; walk line rides its top
+      const dx = L.x0 - 46, dw = (L.x1 + 76) - dx;
+      const dh = dw * img.height / img.width;
+      const apex = W.logY((L.x0 + L.x1) / 2);
+      ctx.drawImage(img, dx, apex - dh * 0.16, dw, dh);
+      // keep the walked-smooth top light as the readable walk line
+      ctx.strokeStyle = U.css(g.li, 0.3);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const x = U.lerp(L.x0, L.x1, i / 40);
+        i === 0 ? ctx.moveTo(x, W.logY(x) + 1) : ctx.lineTo(x, W.logY(x) + 1);
+      }
+      ctx.stroke();
+      return;
+    }
     const col = U.css(U.mixc(g.near, [30, 24, 16], 0.3));
     ctx.fillStyle = col;
     // tapered trunk: thin tip (near bank) to thick rootball (far bank)
@@ -791,6 +850,14 @@ G.Render = (() => {
   }
 
   function drawOverhangLip(ctx, g) {
+    const img = G.Plates && G.Plates.get('overhang');
+    if (img) {
+      // painted shelf hangs over the crawl; bottom edge rides the ceiling line
+      const dx = 6330, dw = 7460 - dx;
+      const dh = dw * img.height / img.width;
+      ctx.drawImage(img, dx, 238 - dh, dw, dh);
+      return;
+    }
     // front rock lip: irregular dark mass hanging over the crawl, open below
     ctx.fillStyle = U.css(U.mixc(g.near, [0, 0, 0], 0.5));
     ctx.beginPath();
