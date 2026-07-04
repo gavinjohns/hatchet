@@ -70,7 +70,7 @@ G.Plates = (() => {
 
   function load() {
     const data = window.PLATE_DATA || {}; // inlined data URIs (artifact bundle)
-    for (const d of BACKDROPS) add(d.name, data[d.name] || `assets/plates/${d.name}.jpg`, false);
+    for (const d of BACKDROPS) add(d.name, data[d.name] || `assets/plates/${d.name}.png`, false);
     for (const c of CUTOUTS) add(c, data[c] || `assets/plates/${c}.png`, true);
   }
 

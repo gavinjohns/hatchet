@@ -1,0 +1,51 @@
+name: deploy-pages
+
+on:
+  push:
+    branches: [claude/wilderness-platformer-prototype-qtni42]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bake the Higgsfield-generated plates into the site so the deployed
+      # game is fully self-contained (no runtime CDN dependency).
+      - name: Fetch painted plates
+        run: |
+          mkdir -p assets/plates
+          base="https://d8j0ntlcm91z4.cloudfront.net/user_3FznXrOOp14m783apv4k3hlBvLe"
+          curl -fsSL -o assets/plates/bd_dawn.png    "$base/hf_20260703_145957_018985dc-a692-44e9-92e4-6bc59f437e48.png"
+          curl -fsSL -o assets/plates/bd_milky.png   "$base/hf_20260704_123736_3e9783e8-d4bf-411e-b07a-68de5e188c91.png"
+          curl -fsSL -o assets/plates/bd_storm.png   "$base/hf_20260703_150005_6ead0f82-97fa-4686-9f47-d7e01d277635.png"
+          curl -fsSL -o assets/plates/bd_dusk.png    "$base/hf_20260704_123739_235a6f32-8274-4887-8140-ca2c8fa0f35d.png"
+          curl -fsSL -o assets/plates/bd_night.png   "$base/hf_20260704_123741_480fc2ee-0a24-4797-813a-92ee08f9e58e.png"
+          curl -fsSL -o assets/plates/giant_pine.png "$base/hf_20260704_125149_48638102-f599-42a1-bbb1-fbaa236c54d5.png"
+          curl -fsSL -o assets/plates/log_bridge.png "$base/hf_20260704_124751_99f6d1fc-bae4-4ce9-905c-b6e4d26a5369.png"
+          curl -fsSL -o assets/plates/overhang.png   "$base/hf_20260704_124754_d49712f9-a48a-4751-aef8-261db4b0fee5.png"
+          ls -la assets/plates
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
