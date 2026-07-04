@@ -18,15 +18,28 @@ G.Plates = (() => {
 
   const imgs = {};
 
-  // trim transparent margins so placement math uses true content bounds
+  // trim transparent margins so placement math uses true content bounds;
+  // if a cutout arrived without alpha, key out its white backdrop first
   function trim(img) {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
-    let data;
-    try { data = g.getImageData(0, 0, c.width, c.height).data; }
+    let id;
+    try { id = g.getImageData(0, 0, c.width, c.height); }
     catch (e) { return c; }
+    const d = id.data;
+    let opaque = 0, samples = 0;
+    for (let i = 3; i < d.length; i += 4 * 97) { samples++; if (d[i] > 250) opaque++; }
+    if (opaque > samples * 0.985) {
+      for (let i = 0; i < d.length; i += 4) {
+        const m = Math.min(d[i], d[i + 1], d[i + 2]);
+        if (m > 236) d[i + 3] = 0;
+        else if (m > 210) d[i + 3] = Math.min(d[i + 3], (236 - m) * 9);
+      }
+      g.putImageData(id, 0, 0);
+    }
+    const data = d;
     let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
     for (let y = 0; y < c.height; y += 2) {
       for (let x = 0; x < c.width; x += 2) {

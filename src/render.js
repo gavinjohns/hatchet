@@ -361,16 +361,19 @@ G.Render = (() => {
     fogBand(ctx, w, h, 0.60, g, 0.24 + storm * 0.16, t + 40, 1.4);
 
     // ---------------- near trees (huge, dark, framing) ----------------
-    layer(0.85, () => {
-      const col = U.css(U.mixc(g.near, g.mid, 0.25));
-      const x0 = cam.x - w / zoom - 500, x1 = cam.x + w / zoom + 500;
-      for (const tr of treesNear) {
-        if (tr.x < x0 || tr.x > x1) continue;
-        const base = W.groundY(tr.x);
-        if (base > 380) continue;
-        pine(ctx, tr.x, base + 20, tr.h, tr.w, tr.s, col);
-      }
-    });
+    // painted backdrops carry their own framing trunks — vector pines clash
+    if (!usePlates) {
+      layer(0.85, () => {
+        const col = U.css(U.mixc(g.near, g.mid, 0.25));
+        const x0 = cam.x - w / zoom - 500, x1 = cam.x + w / zoom + 500;
+        for (const tr of treesNear) {
+          if (tr.x < x0 || tr.x > x1) continue;
+          const base = W.groundY(tr.x);
+          if (base > 380) continue;
+          pine(ctx, tr.x, base + 20, tr.h, tr.w, tr.s, col);
+        }
+      });
+    }
 
     // ---------------- background water planes ----------------
     layer(0.82, () => {
@@ -619,10 +622,12 @@ G.Render = (() => {
     const gpX = 2170, gpY = W.groundY(gpX);
     const gpImg = G.Plates && G.Plates.get('giant_pine');
     if (gpImg) {
+      // crop the painted ground-shadow off the bottom edge
+      const sh = gpImg.height * 0.955;
       const dh = 980, dw = dh * gpImg.width / gpImg.height;
       ctx.save();
       ctx.globalAlpha = 0.94;
-      ctx.drawImage(gpImg, gpX - dw * 0.5, gpY + 12 - dh, dw, dh);
+      ctx.drawImage(gpImg, 0, 0, gpImg.width, sh, gpX - dw * 0.5, gpY + 14 - dh * 0.955, dw, dh * 0.955);
       ctx.restore();
     } else {
       const gpC = U.css(U.mixc(g.near, g.mid, 0.22));
@@ -664,25 +669,28 @@ G.Render = (() => {
 
     // ---- the rock overhang: a shelf you crawl under, bright lake beyond ----
     const rockBack = U.mixc(g.near, [34, 29, 22], 0.35);
-    // hill face the shelf grows out of (behind the player on the approach)
-    ctx.fillStyle = U.css(rockBack);
-    ctx.beginPath();
-    ctx.moveTo(6392, W.groundY(6392) + 8);
-    ctx.lineTo(6400, -700);
-    ctx.lineTo(6620, -700);
-    ctx.lineTo(6636, 180);
-    ctx.lineTo(6612, W.groundY(6612) + 8);
-    ctx.closePath();
-    ctx.fill();
-    // strata on the hill face
-    ctx.strokeStyle = U.css(U.mixc(rockBack, [0, 0, 0], 0.4), 0.5);
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 6; i++) {
-      const y = 200 - i * 52;
+    const ohImg = G.Plates && G.Plates.get('overhang');
+    if (!ohImg) {
+      // hill face the shelf grows out of (behind the player on the approach)
+      ctx.fillStyle = U.css(rockBack);
       ctx.beginPath();
-      ctx.moveTo(6400, y + edgeN(i * 3) * 14);
-      ctx.lineTo(6630, y + edgeN(i * 5 + 2) * 14 - 8);
-      ctx.stroke();
+      ctx.moveTo(6392, W.groundY(6392) + 8);
+      ctx.lineTo(6400, -700);
+      ctx.lineTo(6620, -700);
+      ctx.lineTo(6636, 180);
+      ctx.lineTo(6612, W.groundY(6612) + 8);
+      ctx.closePath();
+      ctx.fill();
+      // strata on the hill face
+      ctx.strokeStyle = U.css(U.mixc(rockBack, [0, 0, 0], 0.4), 0.5);
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        const y = 200 - i * 52;
+        ctx.beginPath();
+        ctx.moveTo(6400, y + edgeN(i * 3) * 14);
+        ctx.lineTo(6630, y + edgeN(i * 5 + 2) * 14 - 8);
+        ctx.stroke();
+      }
     }
     // shelf underside behind the player (skipped when the painted shelf
     // cutout hangs in the foreground pass instead)
@@ -734,10 +742,11 @@ G.Render = (() => {
     const img = G.Plates && G.Plates.get('log_bridge');
     if (img) {
       // stretch the painted trunk across the span; walk line rides its top
-      const dx = L.x0 - 46, dw = (L.x1 + 76) - dx;
+      const dx = L.x0 - 30, dw = (L.x1 + 90) - dx;
       const dh = dw * img.height / img.width;
       const apex = W.logY((L.x0 + L.x1) / 2);
-      ctx.drawImage(img, dx, apex - dh * 0.16, dw, dh);
+      // the walkable trunk edge sits ~56% down the painted content
+      ctx.drawImage(img, dx, apex - dh * 0.56, dw, dh);
       // keep the walked-smooth top light as the readable walk line
       ctx.strokeStyle = U.css(g.li, 0.3);
       ctx.lineWidth = 1.4;
@@ -853,9 +862,9 @@ G.Render = (() => {
     const img = G.Plates && G.Plates.get('overhang');
     if (img) {
       // painted shelf hangs over the crawl; bottom edge rides the ceiling line
-      const dx = 6330, dw = 7460 - dx;
+      const dx = 6080, dw = 1480;
       const dh = dw * img.height / img.width;
-      ctx.drawImage(img, dx, 238 - dh, dw, dh);
+      ctx.drawImage(img, dx, 240 - dh, dw, dh);
       return;
     }
     // front rock lip: irregular dark mass hanging over the crawl, open below
